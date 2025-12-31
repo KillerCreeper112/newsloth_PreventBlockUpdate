@@ -1,0 +1,25 @@
+custom_place_permission: preventblockupdate.custom_place
+allow_only_player_placed_physics: true
+custom_place:
+  # If you don't specifically supply a "block",
+  # then it will attempt to get the block from the item,
+  # like it does in this #1 example.
+  1:
+    item: minecraft:fern
+    placeable_on:
+      type: any
+      values:
+      - block: minecraft:stone
+      - block: minecraft:cobblestone
+  2:
+    # This is the item to check when right clicked
+    item: minecraft:tall_grass
+    # These are the blocks to place, going from the bottom upwards.
+    block:
+      - "minecraft:tall_grass[half=lower]"
+      - "minecraft:tall_grass[half=upper]"
+    placeable_on:
+      type: any
+      values:
+      - block: minecraft:stone
+      - block: minecraft:cobblestone

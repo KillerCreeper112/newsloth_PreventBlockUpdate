@@ -1,0 +1,11 @@
+name: PreventBlockUpdate
+version: "1.0"
+author: killercreepr
+main: killercreepr.preventblockupdate.PreventBlockUpdate
+api-version: "1.19"
+website: https://discord.gg/7fFJG75
+depend: [Utility]
+softdepend: [PlayerBlocks]
+commands:
+  preventblockupdate:
+    permission: preventblockupdate.command.preventblockupdate
