@@ -1,26 +1,38 @@
 package killercreepr.preventblockupdate;
 
+import com.destroystokyo.paper.MaterialTags;
+import com.destroystokyo.paper.event.block.BlockDestroyEvent;
 import killerceepr.utility.api.item.ItemPredicate;
 import killerceepr.utility.command.CruxCmd;
 import killerceepr.utility.config.CruxConfig;
 import killerceepr.utility.config.data.FileBlockPredicate;
 import killerceepr.utility.config.data.FileItemPredicate;
 import killerceepr.utility.plugin.CruxPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Door;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.DayOfWeek;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -98,8 +110,28 @@ public class PreventBlockUpdate extends CruxPlugin implements Listener {
     }
 
 
+    protected final Collection<Block> broke = new HashSet<>();
+    public boolean doorLogic(Block b){
+        if(broke.contains(b)) return false;
+        if(b.getBlockData() instanceof Door door){
+            Block check;
+            if(door.getHalf() == Bisected.Half.TOP){
+                check = b.getRelative(BlockFace.DOWN);
+                if(check.getBlockData() instanceof Door d && d.getHalf() == Bisected.Half.BOTTOM) return false;
+            }else{
+                check = b.getRelative(BlockFace.UP);
+                if(check.getBlockData() instanceof Door d && d.getHalf() == Bisected.Half.TOP) return false;
+            }
+            if(broke.contains(check)) return false;
+        }
+        return true;
+    }
+
     public boolean shouldCancelPhysics(Block b){
+        var doorLogic = doorLogic(b);
+        if(doorLogic) return true;
         if(getConfig().getBoolean("allow_only_player_placed_physics")){
+            if(b.getBlockData() instanceof Door) return false;
             return !BlockPlayerPlaced.placedByPlayer(b);
         }
 
@@ -111,6 +143,46 @@ public class PreventBlockUpdate extends CruxPlugin implements Listener {
     public boolean physics(Block b){
         return shouldCancelPhysics(b);
     }
+
+    public void doorBreak(Block b){
+        if(!(b.getBlockData() instanceof Door door)) return;
+        Block check;
+        if(door.getHalf() == Bisected.Half.TOP){
+            check = b.getRelative(BlockFace.DOWN);
+            if(check.getBlockData() instanceof Door doorCheck && doorCheck.getHalf() == Bisected.Half.BOTTOM){
+                broke.add(b);
+            }
+        }else{
+            check = b.getRelative(BlockFace.UP);
+            if(check.getBlockData() instanceof Door doorCheck && doorCheck.getHalf() == Bisected.Half.TOP){
+                broke.add(b);
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockBreak(BlockBreakEvent event) {
+        doorBreak(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockDestroy(BlockDestroyEvent event) {
+        doorBreak(event.getBlock());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onItemSpawn(ItemSpawnEvent event) {
+        var item = event.getEntity().getItemStack();
+
+        var type = item.getType();
+        if(Tag.BUTTONS.isTagged(type) || type == Material.LEVER || type == Material.LADDER){
+            var meta = item.getItemMeta();
+            if(meta == null || (!meta.hasDisplayName() && !meta.hasLore() && !meta.hasItemName())){
+                event.setCancelled(true);
+            }
+        }
+    }
+
 
     @Override
     public void onLoad() {
